@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUN-QA Ed.Tech Management System</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables -->
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { min-height: 100vh; background: #2c3e50; color: white; }
+        .sidebar .nav-link { color: #bdc3c7; }
+        .sidebar .nav-link.active, .sidebar .nav-link:hover { color: white; background: #34495e; }
+        .content-area { padding: 20px; }
+        .stat-card { border-left: 5px solid; }
+        .stat-card.primary { border-left-color: #3498db; }
+        .stat-card.success { border-left-color: #2ecc71; }
+        .stat-card.warning { border-left-color: #f1c40f; }
+        .alert-workload { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="login-view" class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+    <div class="card shadow p-4" style="width: 400px;">
+        <h3 class="text-center mb-4"><i class="fas fa-graduation-cap text-primary"></i> AUN-QA Ed.Tech</h3>
+        <div class="mb-3">
+            <label class="form-label">อีเมล/ชื่อผู้ใช้</label>
+            <input type="text" id="loginUser" class="form-control" placeholder="user@msu.ac.th">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">รหัสผ่าน</label>
+            <input type="password" id="loginPass" class="form-control">
+        </div>
+        <button onclick="doLogin()" class="btn btn-primary w-100">เข้าสู่ระบบ</button>
+    </div>
+</div>
+
+<!-- MAIN APP VIEW -->
+<div id="app-view" class="d-none">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 sidebar d-flex flex-column p-3">
+                <h4 class="text-center mb-4">Ed.Tech QA</h4>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    <li class="nav-item"><a href="#" class="nav-link active" data-target="dashboard"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link" data-target="teaching"><i class="fas fa-chalkboard-teacher me-2"></i>ภาระงานสอน</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link" data-target="outputs"><i class="fas fa-flask me-2"></i>ผลงาน/นวัตกรรม</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link" data-target="development"><i class="fas fa-user-graduate me-2"></i>การพัฒนาวิชาชีพ</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link" data-target="sar"><i class="fas fa-chart-pie me-2"></i>SAR Summary</a></li>
+                    <li class="nav-item" id="admin-menu" style="display:none;"><a href="#" class="nav-link" data-target="admin"><i class="fas fa-cogs me-2"></i>จัดการระบบ</a></li>
+                </ul>
+                <hr>
+                <div class="text-center">
+                    <span id="userNameDisplay" class="small"></span><br>
+                    <button onclick="doLogout()" class="btn btn-sm btn-outline-light mt-2">ออกจากระบบ</button>
+                </div>
+            </nav>
+
+            <!-- Content -->
+            <main class="col-md-10 content-area">
+                <!-- Workload Alert -->
+                <div id="workloadAlert" class="alert alert-danger alert-workload d-flex align-items-center" role="alert">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <strong>แจ้งเตือนภาระงานเกินเกณฑ์!</strong> คุณมีชั่วโมงสอนรวมเกินกว่าเกณฑ์สูงสุด (Max Load) ที่กำหนด โปรดตรวจสอบหรือติดต่อผู้ดูแลระบบ
+                    </div>
+                </div>
+
+                <!-- Dashboard Section -->
+                <section id="sec-dashboard" class="content-section">
+                    <h2 class="mb-4">ภาพรวมระบบ (Dashboard)</h2>
+                    <div class="row mb-4">
+                        <div class="col-md-4"><div class="card stat-card primary shadow-sm p-3"><h6>ผลงานวิชาการ/นวัตกรรม</h6><h2 id="stat-outputs">0</h2></div></div>
+                        <div class="col-md-4"><div class="card stat-card success shadow-sm p-3"><h6>ชั่วโมงพัฒนาวิชาชีพ</h6><h2 id="stat-dev">0</h2></div></div>
+                        <div class="col-md-4"><div class="card stat-card warning shadow-sm p-3"><h6>ภาระงานสอน (เครดิต)</h6><h2 id="stat-teach">0</h2></div></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6"><div class="card p-3 shadow-sm"><h5>สัดส่วนประเภทผลงาน</h5><canvas id="chartType"></canvas></div></div>
+                        <div class="col-md-6"><div class="card p-3 shadow-sm"><h5>ระดับคุณภาพผลงาน</h5><canvas id="chartLevel"></canvas></div></div>
+                    </div>
+                </section>
+
+                <!-- Teaching Section -->
+                <section id="sec-teaching" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2>ข้อมูลภาระงานสอน</h2>
+                        <button class="btn btn-primary" onclick="openModal('teaching')"><i class="fas fa-plus"></i> เพิ่มรายวิชา</button>
+                    </div>
+                    <div class="card p-3 shadow-sm">
+                        <table id="table-teaching" class="table table-striped" style="width:100%">
+                            <thead><tr><th>ภาคเรียน</th><th>รหัสวิชา</th><th>ชื่อวิชา</th><th>เครดิต</th><th>จำนวน นศ.</th><th>จัดการ</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Outputs Section -->
+                <section id="sec-outputs" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2>ผลงานวิชาการและนวัตกรรม</h2>
+                        <button class="btn btn-primary" onclick="openModal('outputs')"><i class="fas fa-plus"></i> เพิ่มผลงาน</button>
+                    </div>
+                    <div class="card p-3 shadow-sm">
+                        <table id="table-outputs" class="table table-striped" style="width:100%">
+                            <thead><tr><th>ประเภท</th><th>ชื่อเรื่อง</th><th>ปี</th><th>ระดับคุณภาพ</th><th>หลักฐาน</th><th>จัดการ</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Development Section -->
+                <section id="sec-development" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2>การพัฒนาวิชาชีพ</h2>
+                        <button class="btn btn-primary" onclick="openModal('development')"><i class="fas fa-plus"></i> เพิ่มกิจกรรม</button>
+                    </div>
+                    <div class="card p-3 shadow-sm">
+                        <table id="table-development" class="table table-striped" style="width:100%">
+                            <thead><tr><th>ชื่อกิจกรรม</th><th>วันที่</th><th>ชั่วโมง</th><th>หลักฐาน</th><th>จัดการ</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- SAR Summary Section -->
+                <section id="sec-sar" class="content-section d-none">
+                    <h2 class="mb-4">SAR Summary (AUN-QA Evidence)</h2>
+                    <div class="card p-4 shadow-sm">
+                        <p class="text-muted">หน้านี้สรุปข้อมูลเพื่อใช้ประกอบการเขียน SAR ตามเกณฑ์ AUN-QA 4.0 (เกณฑ์ 5 และ 8)</p>
+                        <div class="row">
+                            <div class="col-md-6"><canvas id="sarChart1"></canvas></div>
+                            <div class="col-md-6"><canvas id="sarChart2"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin Section -->
+                <section id="sec-admin" class="content-section d-none">
+                    <h2>จัดการสมาชิก (Admin Only)</h2>
+                    <p>สามารถเพิ่ม/แก้ไข User ได้โดยตรงที่ Google Sheets Tab <code>Users</code></p>
+                </section>
+            </main>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL FOR ADD/EDIT DATA -->
+<div class="modal fade" id="dataModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">เพิ่มข้อมูล</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Dynamic Form -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="saveData()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    // ================= GLOBAL CONFIG =================
+    // เปลี่ยน URL นี้เป็น URL ของ Apps Script ที่ Deploy แล้ว
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyJv5Ghpc3ySrU2APXeugeYMP-MzonHY84rapnGW4PbcsOLKJ3dGspLP6EQORXAoVA/exec'; 
+    let authToken = '';
+    let userRole = '';
+    let currentTable = '';
+    let editRowIndex = null;
+    let tables = {};
+
+    // ================= AUTH & NAVIGATION =================
+    async function doLogin() {
+        const userid = document.getElementById('loginUser').value;
+        const password = document.getElementById('loginPass').value;
+        
+        Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        const res = await callAPI({ action: 'login', userid, password });
+        if (res.status === 'success') {
+            authToken = res.token;
+            userRole = res.role;
+            document.getElementById('userNameDisplay').innerText = res.fullname;
+            if (userRole === 'admin') document.getElementById('admin-menu').style.display = 'block';
+            
+            document.getElementById('login-view').classList.add('d-none');
+            document.getElementById('app-view').classList.remove('d-none');
+            Swal.close();
+            loadDashboard();
+        } else {
+            Swal.fire('ผิดพลาด', res.message, 'error');
+        }
+    }
+
+    function doLogout() {
+        authToken = '';
+        document.getElementById('login-view').classList.remove('d-none');
+        document.getElementById('app-view').classList.add('d-none');
+    }
+
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            const target = this.getAttribute('data-target');
+            document.querySelectorAll('.content-section').forEach(s => s.classList.add('d-none'));
+            document.getElementById('sec-' + target).classList.remove('d-none');
+            
+            if (target === 'dashboard') loadDashboard();
+            else if (target === 'teaching' || target === 'outputs' || target === 'development') loadData(target);
+            else if (target === 'sar') loadSAR();
+        });
+    });
+
+    // ================= API CALLER =================
+    async function callAPI(data) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ ...data, token: authToken })
+            });
+            return await response.json();
+        } catch (err) {
+            console.error(err);
+            return { status: 'error', message: 'Connection failed' };
+        }
+    }
+
+    // ================= DATA LOADING =================
+    async function loadDashboard() {
+        const res = await callAPI({ action: 'get_sar_summary' });
+        if (res.status === 'success') {
+            document.getElementById('stat-outputs').innerText = res.totalOutputs;
+            renderChart('chartType', res.typeCounts, 'doughnut');
+            renderChart('chartLevel', res.levelCounts, 'bar');
+        }
+    }
+
+    async function loadData(table) {
+        const res = await callAPI({ action: 'get_data', table });
+        if (res.status === 'success') {
+            if (tables[table]) tables[table].destroy();
+            
+            const tbody = document.querySelector(`#table-${table} tbody`);
+            tbody.innerHTML = '';
+            
+            res.rows.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                if (table === 'teaching') {
+                    tr.innerHTML = `<td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td><td>${row[6]}</td>
+                                    <td><button class="btn btn-sm btn-warning" onclick="editRow('${table}', ${index + 1})"><i class="fas fa-edit"></i></button></td>`;
+                } else if (table === 'outputs') {
+                    const fileLink = row[7] ? `<a href="https://drive.google.com/file/d/${row[7]}/view" target="_blank"><i class="fas fa-file-pdf fa-2x text-danger"></i></a>` : '-';
+                    tr.innerHTML = `<td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td><td>${fileLink}</td>
+                                    <td><button class="btn btn-sm btn-warning" onclick="editRow('${table}', ${index + 1})"><i class="fas fa-edit"></i></button></td>`;
+                } else if (table === 'development') {
+                    const fileLink = row[6] ? `<a href="https://drive.google.com/file/d/${row[6]}/view" target="_blank"><i class="fas fa-file-pdf fa-2x text-danger"></i></a>` : '-';
+                    tr.innerHTML = `<td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${fileLink}</td>
+                                    <td><button class="btn btn-sm btn-warning" onclick="editRow('${table}', ${index + 1})"><i class="fas fa-edit"></i></button></td>`;
+                }
+                tbody.appendChild(tr);
+            });
+
+            tables[table] = $(`#table-${table}`).DataTable();
+
+            // Workload Alert
+            if (table === 'teaching' && res.workloadAlert) {
+                document.getElementById('workloadAlert').style.display = 'flex';
+            } else {
+                document.getElementById('workloadAlert').style.display = 'none';
+            }
+        }
+    }
+
+    async function loadSAR() {
+        const res = await callAPI({ action: 'get_sar_summary' });
+        if (res.status === 'success') {
+            renderChart('sarChart1', res.typeCounts, 'pie');
+            renderChart('sarChart2', res.levelCounts, 'bar');
+        }
+    }
+
+    function renderChart(canvasId, dataObj, type) {
+        const ctx = document.getElementById(canvasId);
+        if (ctx.chart) ctx.chart.destroy();
+        ctx.chart = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: Object.keys(dataObj),
+                datasets: [{
+                    label: 'จำนวน',
+                    data: Object.values(dataObj),
+                    backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', '#34495e']
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+
+    // ================= MODAL & FORMS =================
+    function openModal(table, rowIndex = null) {
+        currentTable = table;
+        editRowIndex = rowIndex;
+        document.getElementById('modalTitle').innerText = rowIndex ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูล';
+        const body = document.getElementById('modalBody');
+        body.innerHTML = '';
+
+        if (table === 'teaching') {
+            body.innerHTML = `
+                <div class="mb-3"><label>ภาคเรียน</label><input type="text" id="f_semester" class="form-control" placeholder="1/2567"></div>
+                <div class="mb-3"><label>รหัสวิชา</label><input type="text" id="f_coursecode" class="form-control"></div>
+                <div class="mb-3"><label>ชื่อวิชา</label><input type="text" id="f_coursename" class="form-control"></div>
+                <div class="mb-3"><label>หน่วยกิต</label><input type="number" id="f_credit" class="form-control"></div>
+                <div class="mb-3"><label>จำนวนนักศึกษา</label><input type="number" id="f_students" class="form-control"></div>
+            `;
+        } else if (table === 'outputs') {
+            body.innerHTML = `
+                <div class="mb-3"><label>ประเภทผลงาน</label>
+                    <select id="f_type" class="form-select">
+                        <option value="Paper">บทความวิจัย/วิชาการ</option>
+                        <option value="Media">สื่อ/นวัตกรรม/เทคโนโลยี</option>
+                        <option value="Book">หนังสือ/ตำรา</option>
+                        <option value="Conference">งานประชุมวิชาการ</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label>ชื่อเรื่อง</label><input type="text" id="f_title" class="form-control"></div>
+                <div class="mb-3"><label>ปี พ.ศ.</label><input type="text" id="f_year" class="form-control"></div>
+                <div class="mb-3"><label>ระดับคุณภาพ</label>
+                    <select id="f_level" class="form-select">
+                        <optgroup label="บทความวิจัย/วิชาการ">
+                            <option value="Scopus Q1">Scopus Q1</option><option value="TCI 1">TCI กลุ่ม 1</option><option value="TCI 2">TCI กลุ่ม 2</option>
+                        </optgroup>
+                        <optgroup label="สื่อ/นวัตกรรม/เทคโนโลยีการศึกษา">
+                            <option value="IP Registered">จดทะเบียนทรัพย์สินทางปัญญา</option>
+                            <option value="National Used">มีการนำไปใช้จริงระดับชาติ</option>
+                            <option value="High Satisfaction">ผลประเมินความพึงพอใจ > 80%</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="mb-3"><label>เกณฑ์ AUN-QA ที่สอดคล้อง</label><input type="text" id="f_aun" class="form-control" placeholder="เช่น 8.1, 8.2"></div>
+                <div class="mb-3"><label>อัปโหลดหลักฐาน (PDF <= 5MB)</label><input type="file" id="f_file" class="form-control" accept=".pdf"></div>
+            `;
+        } else if (table === 'development') {
+            body.innerHTML = `
+                <div class="mb-3"><label>ชื่อกิจกรรม</label><input type="text" id="f_activity" class="form-control"></div>
+                <div class="mb-3"><label>วันที่</label><input type="date" id="f_date" class="form-control"></div>
+                <div class="mb-3"><label>จำนวนชั่วโมง</label><input type="number" id="f_hours" class="form-control"></div>
+                <div class="mb-3"><label>เกณฑ์ AUN-QA ที่สอดคล้อง</label><input type="text" id="f_aun" class="form-control" placeholder="เช่น 5.4"></div>
+                <div class="mb-3"><label>อัปโหลดหลักฐาน (PDF <= 5MB)</label><input type="file" id="f_file" class="form-control" accept=".pdf"></div>
+            `;
+        }
+
+        new bootstrap.Modal(document.getElementById('dataModal')).show();
+    }
+
+    async function saveData() {
+        let rowData = [];
+        let fileId = '';
+
+        // Handle File Upload if exists
+        const fileInput = document.getElementById('f_file');
+        if (fileInput && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('แจ้งเตือน', 'ไฟล์มีขนาดใหญ่เกิน 5MB', 'warning');
+                return;
+            }
+            Swal.fire({ title: 'กำลังอัปโหลดไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const base64 = await fileToBase64(file);
+            const uploadRes = await callAPI({ action: 'upload_file', filename: file.name, base64Data: base64 });
+            if (uploadRes.status === 'success') {
+                fileId = uploadRes.fileId;
+            } else {
+                Swal.fire('ผิดพลาด', uploadRes.message, 'error');
+                return;
+            }
+            Swal.close();
+        }
+
+        // Collect Form Data
+        if (currentTable === 'teaching') {
+            rowData = ['', '', document.getElementById('f_semester').value, document.getElementById('f_coursecode').value, 
+                       document.getElementById('f_coursename').value, document.getElementById('f_credit').value, document.getElementById('f_students').value];
+        } else if (currentTable === 'outputs') {
+            rowData = ['', '', document.getElementById('f_type').value, document.getElementById('f_title').value, 
+                       document.getElementById('f_year').value, document.getElementById('f_level').value, document.getElementById('f_aun').value, fileId, 'Pending'];
+        } else if (currentTable === 'development') {
+            rowData = ['', '', document.getElementById('f_activity').value, document.getElementById('f_date').value, 
+                       document.getElementById('f_hours').value, document.getElementById('f_aun').value, fileId];
+        }
+
+        const res = await callAPI({ action: 'save_data', table: currentTable, rowData, editIndex: editRowIndex });
+        if (res.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('dataModal')).hide();
+            Swal.fire('สำเร็จ', res.message, 'success');
+            loadData(currentTable);
+        } else {
+            Swal.fire('ผิดพลาด', res.message, 'error');
+        }
+    }
+
+    function editRow(table, index) {
+        // In a real app, fetch the specific row data to populate the form.
+        // For simplicity, we just open the modal. You can enhance this to pre-fill data.
+        openModal(table, index);
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+</script>
+</body>
+</html>
