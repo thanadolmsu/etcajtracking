@@ -265,7 +265,7 @@
       }
     });
 
-    // API Helper
+// API Helper (อัปเดตใหม่)
     async function callAPI(action, payload = {}) {
       payload.action = action;
       if (currentUser) payload.auth_user = currentUser;
@@ -273,13 +273,35 @@
       try {
         const response = await fetch(SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow", // <-- สำคัญ: บังคับให้ตาม Redirect ของ Google Apps Script
+          headers: { 
+            "Content-Type": "text/plain;charset=utf-8" 
+          },
           body: JSON.stringify(payload)
         });
-        return await response.json();
+        
+        // ตรวจสอบว่าเซิร์ฟเวอร์ตอบกลับมาเป็น JSON หรือไม่
+        const result = await response.json();
+        return result;
+        
       } catch (error) {
         console.error("API Error:", error);
-        throw error;
+        // แสดงข้อความ Error ใน Console เพื่อให้ตรวจสอบได้ง่ายขึ้น
+        throw new Error("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบ Web App URL หรือ Network");
+      }
+    }
+
+    // เพิ่มฟังก์ชันเคลียร์ข้อมูลเก่าในฟอร์มเมื่อกด "เพิ่มข้อมูลใหม่"
+    function openModal(id) { 
+      document.getElementById(id).classList.remove('hidden'); 
+      // รีเซ็ตฟอร์มและ Hidden ID เพื่อไม่ให้ไปทับข้อมูลเดิม
+      if(id === 'courseModal') { 
+        document.getElementById('courseForm').reset(); 
+        document.getElementById('c_id').value = ''; 
+      }
+      if(id === 'pubModal') { 
+        document.getElementById('pubForm').reset(); 
+        document.getElementById('p_id').value = ''; 
       }
     }
 
